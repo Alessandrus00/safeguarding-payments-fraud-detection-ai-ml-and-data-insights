@@ -37,6 +37,11 @@ resource "aws_iam_openid_connect_provider" "this" {
   }
 }
 
+rresource "time_sleep" "wait_for_roles" {
+  count           = local.roles == [] ? 0 : 1
+  create_duration = "30s"
+}
+
 resource "aws_eks_access_entry" "this" {
   count             = local.roles == [] ? 0 : length(local.roles)
   cluster_name      = aws_eks_cluster.this.name
@@ -49,6 +54,8 @@ resource "aws_eks_access_entry" "this" {
     data.aws_caller_identity.this.account_id,
     element(local.roles, count.index)
   )
+
+  depends_on = [time_sleep.wait_for_roles]
 }
 
 resource "aws_eks_access_policy_association" "this" {
@@ -70,4 +77,6 @@ resource "aws_eks_access_policy_association" "this" {
     type       = var.q.access_type
     namespaces = try(trimspace(var.q.namespaces), "") != "" ? split(",", var.q.namespaces) : null
   }
+
+  depends_on = [time_sleep.wait_for_roles]
 }
