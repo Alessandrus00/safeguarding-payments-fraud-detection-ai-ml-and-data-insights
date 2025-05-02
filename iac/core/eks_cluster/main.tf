@@ -37,30 +37,27 @@ resource "aws_iam_openid_connect_provider" "this" {
   }
 }
 
+# Fetch IAM roles explicitly to validate existence and avoid propagation issues
+data "aws_iam_role" "participant" {
+  for_each = toset(local.roles)
+  name     = each.value
+}
+
 resource "aws_eks_access_entry" "this" {
   count             = local.roles == [] ? 0 : length(local.roles)
   cluster_name      = aws_eks_cluster.this.name
   type              = var.q.entry_type
   kubernetes_groups = try(trimspace(var.q.groups), "") != "" ? split(",", var.q.groups) : null
 
-  principal_arn = format(
-    "arn:%s:iam::%s:role/%s",
-    data.aws_partition.this.partition,
-    data.aws_caller_identity.this.account_id,
-    element(local.roles, count.index)
-  )
+  principal_arn = data.aws_iam_role.participant[element(local.roles, count.index)].arn
 }
 
 resource "aws_eks_access_policy_association" "this" {
   count        = local.roles == [] ? 0 : length(local.roles)
   cluster_name = aws_eks_cluster.this.name
 
-  principal_arn = format(
-    "arn:%s:iam::%s:role/%s",
-    data.aws_partition.this.partition,
-    data.aws_caller_identity.this.account_id,
-    element(local.roles, count.index)
-  )
+  principal_arn = data.aws_iam_role.participant[element(local.roles, count.index)].arn
+
   policy_arn = format(
     "arn:%s:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy",
     data.aws_partition.this.partition
