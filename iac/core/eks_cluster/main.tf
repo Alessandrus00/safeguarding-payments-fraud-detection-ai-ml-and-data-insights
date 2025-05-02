@@ -37,7 +37,7 @@ resource "aws_iam_openid_connect_provider" "this" {
   }
 }
 
-rresource "time_sleep" "wait_for_roles" {
+resource "time_sleep" "wait_for_roles" {
   count           = local.roles == [] ? 0 : 1
   create_duration = "30s"
 }
